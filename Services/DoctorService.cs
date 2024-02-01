@@ -1,56 +1,113 @@
 ﻿using System;
 using ClinicAPI.Models;
 using ClinicAPI.Interfaces;
+using Microsoft.Extensions.Logging; 
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using ClinicAPI.Exceptions;
 
 namespace ClinicAPI.Services
 {
-	public class DoctorService:IDoctorAdminService
-	{
-		private IRepository<int, Doctor> _repo;
-		public DoctorService(IRepository<int,Doctor> repo)
-		{
-			_repo = repo;
-		}
+    public class DoctorService : IDoctorAdminService
+    {
+        private readonly IRepository<int, Doctor> _repo;
+        private readonly ILogger<DoctorService> _logger;
+
+        public DoctorService(IRepository<int, Doctor> repo, ILogger<DoctorService> logger)
+        {
+            _repo = repo;
+            _logger = logger;
+        }
 
         public async Task<Doctor> AddDoctor(Doctor doctor)
         {
-            doctor = await _repo.Add(doctor);
-            return doctor;
-        }
-
-        public async Task<Doctor> ChangeDoctorExpererienceAsync(int id, string experience)
-        {
-            var doctor = await _repo.GetAsync(id);
-            if (doctor != null)
+            try
             {
-                doctor.Experience = experience;
-                doctor = await _repo.Update(doctor);
+                doctor = await _repo.Add(doctor);
                 return doctor;
             }
-            return null;
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while adding a doctor");
+                throw new RetrievingDoctorServiceException("Error occurred while adding a doctor", ex);
+            }
         }
+
+       
 
         public async Task<Doctor> GetDoctor(int id)
         {
-            var doctor = await _repo.GetAsync(id);
-            return doctor;
+            try
+            {
+                var doctor = await _repo.GetAsync(id);
+                return doctor;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error occurred while retrieving doctor with id {id}");
+                throw new RetrievingDoctorServiceException($"Error occurred while retrieving doctor with id {id}", ex);
+            }
         }
 
         public async Task<List<Doctor>> GetDoctorsListAsync()
         {
-            var doctors = await _repo.GetAsync();
-            return doctors;
+            try
+            {
+                var doctors = await _repo.GetAsync();
+                return doctors;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while retrieving the list of doctors");
+                throw new RetrievingDoctorServiceException("Error occurred while retrieving the list of doctors", ex);
+            }
         }
+
         public async Task<Doctor> DeleteDoctorAsync(int id)
         {
-            var doctor = await _repo.GetAsync(id);
-            if (doctor != null)
+            try
             {
-                _repo.Delete(id);
-                return doctor;
+                var doctor = await _repo.GetAsync(id);
+                if (doctor != null)
+                {
+                    _repo.Delete(id);
+                    return doctor;
+                }
+                else
+                {
+                    throw new NoSuchDoctorException();
+                }
             }
-            return null;
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error occurred while deleting doctor with id {id}");
+                throw new RetrievingDoctorServiceException($"Error occurred while deleting doctor with id {id}", ex);
+            }
+        }
+
+        public async Task<Doctor> ChangeDoctorExpererienceAsync(int id, string experience)
+        {
+            try
+            {
+                var doctor = await _repo.GetAsync(id);
+                if (doctor != null)
+                {
+                    doctor.Experience = experience;
+                    doctor = await _repo.Update(doctor);
+                    return doctor;
+                }
+                else
+                {
+                    throw new NoSuchDoctorException();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while changing doctor experience");
+                throw new RetrievingDoctorServiceException("Error occurred while changing doctor experience", ex);
+            }
         }
     }
-}
 
+   
+}
